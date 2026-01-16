@@ -7,6 +7,9 @@ import streamlit as st
 import base64
 
 from app.config import APP_TITLE, LOGO_FILENAME, TAB_NAMES
+from app.test_env import render_test_env, init_background_tasks
+from app.mist_extractor import render_mist_extractor
+from app.chip_conveyor import render_chip_conveyor
 
 _APP_ROOT = Path(__file__).resolve().parents[1]
 _LOGO_PATH = _APP_ROOT / "assets" / LOGO_FILENAME
@@ -114,21 +117,26 @@ def run_app() -> None:
     """Startet die Anwendung."""
     st.set_page_config(layout="wide", page_title=APP_TITLE)
     
+    # Hintergrund-Tasks sofort beim Starten der App initialisieren
+    init_background_tasks()
+    
     # Logo in die Sidebar setzen
     if _LOGO_PATH.exists():
         st.logo(str(_LOGO_PATH))
     
     # Sidebar
     st.sidebar.header("Einstellungen")
-    st.sidebar.write("Willkommen in der Factory-X Energy Savings App.")
     
-    # Platzhalter Expander in der Sidebar
-    with st.sidebar.expander("Platzhalter", expanded=False):
-        st.write("Dies ist ein Platzhalter für zukünftige Einstellungen.")
+    # Netzwerkeinstellungen Expander
+    with st.sidebar.expander("Netzwerkeinstellungen", expanded=False):
+        st.session_state.api_url = st.text_input(
+            "REST-API URL", 
+            value=st.session_state.get("api_url", "http://127.0.0.1:8000/data"),
+            help="Konfiguriert den Endpunkt für den Datenabruf."
+        )
     
     # Sidebar Footer (Grauer Balken und Versionsnummer)
     st.sidebar.markdown("""
-        <div style="margin-top: 300px;"></div>
         <hr class="sidebar-hr">
         <div style="color: gray; font-size: 0.8rem;">
             Factory-X Energy Savings v0.1
@@ -154,8 +162,15 @@ def run_app() -> None:
     tabs = st.tabs(TAB_NAMES)
     for i, tab in enumerate(tabs):
         with tab:
-            st.header(TAB_NAMES[i])
-            st.write(f"Inhalt für {TAB_NAMES[i]} hier einfügen.")
+            if TAB_NAMES[i] == "Testing":
+                render_test_env()
+            elif TAB_NAMES[i] == "Mist extractor":
+                render_mist_extractor()
+            elif TAB_NAMES[i] == "Chip conveyor":
+                render_chip_conveyor()
+            else:
+                st.header(TAB_NAMES[i])
+                st.write(f"Inhalt für {TAB_NAMES[i]} hier einfügen.")
 
 
 if __name__ == "__main__":
