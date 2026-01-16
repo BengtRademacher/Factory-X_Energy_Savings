@@ -1,9 +1,11 @@
 import streamlit as st
+import plotly.graph_objects as go
+from app.config import COLOR_PALETTE
 
-def get_traffic_light_html(state="red"):
+def render_traffic_light(state="animation"):
     """
-    Erzeugt das HTML für die Ampel.
-    States: 'red', 'yellow', 'green' oder 'animation'
+    Renders the HTML for the traffic light.
+    States: 'red', 'yellow', 'green' or 'animation'
     """
     
     # CSS Styles
@@ -27,12 +29,12 @@ def get_traffic_light_html(state="red"):
         background-color: #333;
       }
       
-      /* Statische Farben */
+      /* Static colors */
       .light-red { background-color: red !important; box-shadow: 0 0 10px red; }
       .light-yellow { background-color: yellow !important; box-shadow: 0 0 10px yellow; }
       .light-green { background-color: green !important; box-shadow: 0 0 10px green; }
 
-      /* Animationen */
+      /* Animations */
       .anim-red { animation: red-anim 5s linear infinite; }
       .anim-yellow { animation: yellow-anim 5s linear infinite; }
       .anim-green { animation: green-anim 5s linear infinite; }
@@ -53,7 +55,7 @@ def get_traffic_light_html(state="red"):
     </style>
     """
     
-    # Klassen basierend auf State
+    # Classes based on state
     red_class = "anim-red" if state == "animation" else ("light-red" if state == "red" else "")
     yellow_class = "anim-yellow" if state == "animation" else ("light-yellow" if state == "yellow" else "")
     green_class = "anim-green" if state == "animation" else ("light-green" if state == "green" else "")
@@ -66,7 +68,49 @@ def get_traffic_light_html(state="red"):
       <span class="{green_class}"></span>
     </div>
     """
-    return html
+    st.components.v1.html(html, height=170)
 
-def render_traffic_light(state="animation"):
-    st.components.v1.html(get_traffic_light_html(state), height=170)
+def create_plotly_chart(df, y_col, title, color=None, y_label="Effective power [W]", height=300):
+    """
+    Creates a modern Plotly line chart.
+    """
+    if color is None:
+        color = COLOR_PALETTE.get("FX Blue", "#4B5BA9")
+        
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=df["timestamp"],
+        y=df[y_col],
+        name=y_col,
+        mode='lines',
+        line=dict(color=color, width=2, shape='spline'),
+        fill='tozeroy',
+        fillcolor=f"rgba{tuple(list(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + [0.1])}"
+    ))
+    
+    fig.update_layout(
+        title=dict(text=title if title else "", font=dict(size=14, color='#333')),
+        height=height,
+        margin=dict(l=50, r=20, t=20 if not title else 40, b=40),
+        paper_bgcolor='white',
+        plot_bgcolor='rgba(250, 250, 250, 0.5)',
+        xaxis=dict(
+            title="Timestamp",
+            showgrid=True,
+            gridcolor='rgba(200, 200, 200, 0.3)',
+            nticks=20,
+            tickfont=dict(size=9)
+        ),
+        yaxis=dict(
+            title=y_label,
+            showgrid=True,
+            gridcolor='rgba(200, 200, 200, 0.3)',
+            zeroline=True,
+            zerolinecolor='rgba(200, 200, 200, 0.5)'
+        ),
+        hovermode="x unified",
+        showlegend=False
+    )
+    
+    return fig

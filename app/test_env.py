@@ -1,107 +1,76 @@
 import streamlit as st
-import random
-import time
-import threading
-import json
-import requests
-from fastapi import FastAPI
-import uvicorn
-from datetime import datetime
 import pandas as pd
-from collections import deque
+from app.components import create_plotly_chart
+from app.config import COLOR_PALETTE
+from app.services.data_service import data_service
 
-# --- GLOBAL SHARED STATE (Thread-Safe outside Streamlit) ---
-# Diese Variablen verursachen keine "ScriptRunContext" Warnungen
-_GLOBAL_HISTORY = deque(maxlen=60)
-_SERVER_DATA = {
-    "Main supply": 0,
-    "Mist extractor": 0,
-    "Chip conveyor": 0,
-    "timestamp": ""
-}
-
-# --- FASTAPI SETUP ---
-api_app = FastAPI()
-
-@api_app.get("/data")
-def get_data():
-    return _SERVER_DATA
-
-def run_api():
-    uvicorn.run(api_app, host="127.0.0.1", port=8000, log_level="error")
-
-# --- GENERATOR SETUP ---
-def data_generator():
-    global _SERVER_DATA
-    while True:
-        _SERVER_DATA = {
-            "Main supply": random.randint(4000, 4500),
-            "Mist extractor": random.randint(380, 395),
-            "Chip conveyor": random.randint(250, 275),
-            "timestamp": datetime.now().strftime("%H:%M:%S")
-        }
-        time.sleep(1)
-
-# --- API POLLER ---
-def api_poller():
-    """Befüllt die globale Historie ohne Streamlit-Kontext."""
-    while True:
-        try:
-            # Pollt die lokale API
-            response = requests.get("http://127.0.0.1:8000/data", timeout=0.5)
-            if response.status_code == 200:
-                api_json = response.json()
-                normalized = {
-                    "timestamp": api_json.get("timestamp", datetime.now().strftime("%H:%M:%S")),
-                    "Main supply": api_json.get("Main supply", api_json.get("Hauptversorgung", 0)),
-                    "Mist extractor": api_json.get("Mist extractor", api_json.get("Nebelabscheider", 0)),
-                    "Chip conveyor": api_json.get("Chip conveyor", api_json.get("Späneförderer", api_json.get("Chip conveyer", 0)))
-                }
-                _GLOBAL_HISTORY.append(normalized)
-        except Exception:
-            pass
-        time.sleep(1)
-
-# --- THREAD MANAGEMENT ---
 def init_background_tasks():
     if "threads_started" not in st.session_state:
-        threading.Thread(target=run_api, daemon=True).start()
-        threading.Thread(target=data_generator, daemon=True).start()
-        threading.Thread(target=api_poller, daemon=True).start()
+        data_service.start_background_tasks()
         st.session_state.threads_started = True
 
-# --- UI RENDERER ---
 @st.fragment(run_every="1s")
+def render_dynamic_charts():
+    history_df = pd.DataFrame(list(data_service.history))
+    if history_df.empty:
+        st.info("Waiting for data...")
+        return
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        fig1 = create_plotly_chart(history_df, "Main supply", None, COLOR_PALETTE["FX Blue"])
+        st.plotly_chart(fig1, use_container_width=True, key="test_main_supply")
+    with col2:
+        fig2 = create_plotly_chart(history_df, "Mist extractor", None, COLOR_PALETTE["Light Blue"])
+        st.plotly_chart(fig2, use_container_width=True, key="test_mist_extractor")
+    with col3:
+        fig3 = create_plotly_chart(history_df, "Chip conveyor", None, COLOR_PALETTE["Blue"])
+        st.plotly_chart(fig3, use_container_width=True, key="test_chip_conveyor")
+
+@st.fragment(run_every="1s")
+def render_json_monitor():
+    history_df = pd.DataFrame(list(data_service.history))
+    col_j1, col_j2 = st.columns(2)
+    with col_j1:
+        st.write("**Data Server**")
+        st.json(data_service.server_data, expanded=True)
+    with col_j2:
+        st.write("**API Response**")
+        if not history_df.empty:
+            st.json(history_df.iloc[-1].to_dict(), expanded=True)
+        else:
+            st.warning("Waiting for data...")
+
 def render_test_env():
-    # Daten für die UI aus den globalen Variablen holen
-    history_df = pd.DataFrame(list(_GLOBAL_HISTORY))
-    
-    st.subheader("Simulierte Daten (Server-Side Internal)")
-    st.json(_SERVER_DATA, expanded=True)
-    
+    st.subheader("Two-point controller")
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        data_service.pm10_rise_rate = st.slider(
+            "Pollution rate (PM₁₀ rise)", 
+            0.01, 0.50, data_service.pm10_rise_rate, 0.01,
+            help="How fast PM₁₀ rises per second when extraction is inactive?",
+            key="slider_rise_rate"
+        )
+    with col_s2:
+        data_service.pm10_fall_rate = st.slider(
+            "Extraction efficiency (PM₁₀ fall)", 
+            0.05, 1.00, data_service.pm10_fall_rate, 0.01,
+            help="How fast PM₁₀ falls per second when extraction is active?",
+            key="slider_fall_rate"
+        )
+
     st.divider()
     
-    st.subheader("REST-API Response (Background Poller)")
-    if not history_df.empty:
-        st.json(history_df.iloc[-1].to_dict(), expanded=True)
-    else:
-        st.warning("Warte auf Hintergrund-Poller...")
+    st.subheader("JSON Monitor")
+    render_json_monitor()
 
     st.divider()
 
-    if not history_df.empty:
-        st.subheader("Live Visualisierung")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.write("**Main supply [W]**")
-            st.line_chart(history_df.set_index("timestamp")["Main supply"])
-        with col2:
-            st.write("**Mist extractor [W]**")
-            st.line_chart(history_df.set_index("timestamp")["Mist extractor"])
-        with col3:
-            st.write("**Chip conveyor [W]**")
-            st.line_chart(history_df.set_index("timestamp")["Chip conveyor"])
+    st.subheader("Overview")
+    render_dynamic_charts()
+
+    st.divider()
+    if st.button("System Reset (Reset model to 0 mg/m³)", type="primary", key="reset_btn"):
+        data_service.reset_all_data()
 
 def get_global_history():
-    """Hilfsfunktion für andere Module."""
-    return list(_GLOBAL_HISTORY)
+    return list(data_service.history)

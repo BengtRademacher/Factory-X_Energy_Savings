@@ -1,4 +1,4 @@
-"""Hauptmodul für die Factory-X Energy Savings App.
+"""Main module for the Factory-X Energy Savings App.
 """
 
 from __future__ import annotations
@@ -17,30 +17,18 @@ _STYLE_PATH = _APP_ROOT / "assets" / "FX_style_top_right.svg"
 
 
 def _get_base64(path: Path) -> str:
-    """Lädt eine Datei als Base64-String."""
+    """Loads a file as a Base64 string."""
     if not path.exists():
         return ""
     with path.open("rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
-def _inject_styles() -> None:
-    """Injiziert globale CSS-Styles."""
-    style_base64 = _get_base64(_STYLE_PATH)
-    
-    # Hintergrundkonfiguration (Hellgrün mit Transparenz)
-    bg_color_hex = "#B1CB21"
-    bg_opacity = 0.3
-    
-    # Hex zu RGB Konvertierung für die Nutzung in rgba()
-    h = bg_color_hex.lstrip('#')
-    r, g, b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-    rgba_bg = f"rgba({r}, {g}, {b}, {bg_opacity})"
-    
-    # CSS für das Hintergrund-SVG
-    bg_style = ""
+def _get_custom_css(rgba_bg: str, style_base64: str) -> str:
+    """Returns the custom CSS for the app."""
+    bg_svg_style = ""
     if style_base64:
-        bg_style = f"""
+        bg_svg_style = f"""
         [data-testid="stAppViewContainer"]::before {{
             content: "";
             position: fixed;
@@ -59,13 +47,12 @@ def _inject_styles() -> None:
         }}
         """
 
-    st.markdown(f"""
+    return f"""
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 <style>
-    {bg_style}
+    {bg_svg_style}
     
-    /* --- START BACKGROUND FADE SNIPPET --- */
-    /* Haupt-Hintergrund mit Radial Gradient (Fokus oben links, Rest transparent) */
+    /* Main background with Radial Gradient */
     [data-testid="stAppViewContainer"] {{
         background: radial-gradient(
             circle at top left, 
@@ -74,9 +61,8 @@ def _inject_styles() -> None:
         ) !important;
         background-attachment: fixed !important;
     }}
-    /* --- END BACKGROUND FADE SNIPPET --- */
 
-    /* Vergrößert das st.logo und passt den Container an */
+    /* Sidebar Header (Logo) adjustment */
     [data-testid="stSidebarHeader"] {{
         height: 120px !important;
         padding-top: 1rem !important;
@@ -86,56 +72,72 @@ def _inject_styles() -> None:
         height: 100px !important;
         width: auto !important;
     }}
-    /* Content über dem Hintergrund */
+
+    /* Main Block Container */
     [data-testid="stMainBlockContainer"] {{
-        position: relative;
         z-index: 1;
         padding-top: 2rem !important;
     }}
-    /* Header transparent machen */
+
+    /* Transparent Header */
     header[data-testid="stHeader"] {{
         background-color: transparent !important;
     }}
+
     /* Sidebar Footer Styling */
-    .sidebar-footer {{
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        color: #888888;
-        font-size: 0.8rem;
-    }}
     .sidebar-hr {{
         border: none;
         border-top: 1px solid #cccccc;
         margin: 10px 0;
     }}
+    
+    /* Scroll behavior fix */
+    html {{
+        scroll-behavior: auto !important;
+    }}
 </style>
-""", unsafe_allow_html=True)
+"""
+
+
+def _inject_styles() -> None:
+    """Injects global CSS styles."""
+    style_base64 = _get_base64(_STYLE_PATH)
+    
+    # Background configuration (Light green with transparency)
+    bg_color_hex = "#B1CB21"
+    bg_opacity = 0.3
+    
+    # Hex to RGB conversion for use in rgba()
+    h = bg_color_hex.lstrip('#')
+    r, g, b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+    rgba_bg = f"rgba({r}, {g}, {b}, {bg_opacity})"
+    
+    st.markdown(_get_custom_css(rgba_bg, style_base64), unsafe_allow_html=True)
 
 
 def run_app() -> None:
-    """Startet die Anwendung."""
+    """Starts the application."""
     st.set_page_config(layout="wide", page_title=APP_TITLE)
     
-    # Hintergrund-Tasks sofort beim Starten der App initialisieren
+    # Initialize background tasks immediately on app start
     init_background_tasks()
     
-    # Logo in die Sidebar setzen
+    # Place logo in the sidebar
     if _LOGO_PATH.exists():
         st.logo(str(_LOGO_PATH))
     
     # Sidebar
-    st.sidebar.header("Einstellungen")
+    st.sidebar.header("Settings")
     
-    # Netzwerkeinstellungen Expander
-    with st.sidebar.expander("Netzwerkeinstellungen", expanded=False):
+    # Network settings expander
+    with st.sidebar.expander("Network Settings", expanded=False):
         st.session_state.api_url = st.text_input(
-            "REST-API URL", 
+            "REST API URL", 
             value=st.session_state.get("api_url", "http://127.0.0.1:8000/data"),
-            help="Konfiguriert den Endpunkt für den Datenabruf."
+            help="Configures the endpoint for data retrieval."
         )
     
-    # Sidebar Footer (Grauer Balken und Versionsnummer)
+    # Sidebar Footer
     st.sidebar.markdown("""
         <hr class="sidebar-hr">
         <div style="color: gray; font-size: 0.8rem;">
@@ -143,7 +145,7 @@ def run_app() -> None:
         </div>
         """, unsafe_allow_html=True)
     
-    # Header mit ausgewähltem Icon
+    # Header with icon
     st.markdown(
         f"""
         <div style='display:flex; align-items:center; gap:16px; margin-bottom:1rem;'>
@@ -170,7 +172,7 @@ def run_app() -> None:
                 render_chip_conveyor()
             else:
                 st.header(TAB_NAMES[i])
-                st.write(f"Inhalt für {TAB_NAMES[i]} hier einfügen.")
+                st.write(f"Insert content for {TAB_NAMES[i]} here.")
 
 
 if __name__ == "__main__":
