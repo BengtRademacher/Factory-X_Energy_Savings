@@ -36,8 +36,9 @@ def render_mist_extractor_savings():
         background: #ffffff;
         border: 1px solid rgba(0, 0, 0, 0.12);
         border-radius: 8px;
+        width: 75%;
         padding: 18px;
-        margin: 18px 0 28px;
+        margin: 18px auto 28px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
     .savings-image-panel img {
