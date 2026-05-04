@@ -9,6 +9,7 @@ import base64
 from app.config import APP_TITLE, LOGO_FILENAME, TAB_NAMES
 from app.test_env import render_test_env, init_background_tasks
 from app.mist_extractor import render_mist_extractor
+from app.mist_extractor_savings import render_mist_extractor_savings
 from app.chip_conveyor import render_chip_conveyor
 
 _APP_ROOT = Path(__file__).resolve().parents[1]
@@ -126,17 +127,6 @@ def run_app() -> None:
     if _LOGO_PATH.exists():
         st.logo(str(_LOGO_PATH))
     
-    # Sidebar
-    st.sidebar.header("Settings")
-    
-    # Network settings expander
-    with st.sidebar.expander("Network Settings", expanded=False):
-        st.session_state.api_url = st.text_input(
-            "REST API URL", 
-            value=st.session_state.get("api_url", "http://127.0.0.1:8000/data"),
-            help="Configures the endpoint for data retrieval."
-        )
-    
     # Sidebar Footer
     st.sidebar.markdown("""
         <hr class="sidebar-hr">
@@ -164,10 +154,12 @@ def run_app() -> None:
     tabs = st.tabs(TAB_NAMES)
     for i, tab in enumerate(tabs):
         with tab:
-            if TAB_NAMES[i] == "Testing":
-                render_test_env()
-            elif TAB_NAMES[i] == "Mist extractor":
+            if TAB_NAMES[i] == "Mist extractor demo":
                 render_mist_extractor()
+            elif TAB_NAMES[i] == "Mist extractor settings":
+                render_test_env()
+            elif TAB_NAMES[i] == "Mist extractor savings":
+                render_mist_extractor_savings()
             elif TAB_NAMES[i] == "Chip conveyor":
                 render_chip_conveyor()
             else:

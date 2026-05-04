@@ -4,23 +4,24 @@
 
 # Factory-X Energy Savings v0.1
 
-*Stand: 22. Januar 2026*
+*Stand: 4. Mai 2026*
 
-Die **Factory-X Energy Savings** App ist eine Streamlit-basierte Anwendung zur Echtzeit-Überwachung und bedarfsgerechten Steuerung von Nebenaggregaten in Werkzeugmaschinen. Sie ermöglicht die Visualisierung von Live-Sensordaten und zeigt Einsparpotenziale durch intelligente Abschaltstrategien auf.
+Die **Factory-X Energy Savings** App ist eine Streamlit-basierte Demonstrator-Anwendung zur Echtzeit-Ueberwachung und bedarfsgerechten Steuerung von Nebenaggregaten in Werkzeugmaschinen. Sie visualisiert simulierte Live-Sensordaten und zeigt Einsparpotenziale durch intelligente Abschaltstrategien.
 
 ## Kernfunktionen
 
 | Tab | Funktion |
 |-----|----------|
-| **Mist extractor** | Überwachung des Ölnebelabscheiders mit PM₁₀-Sensorik. Visualisierung von Leistungsaufnahme und Partikelkonzentration mit Ampel-Status. |
-| **Chip conveyor** | Monitoring des Späneförderers mit Leistungsvisualisierung und Zustandsüberwachung für bedarfsgerechten Betrieb. |
-| **Testing** | Testumgebung zur Simulation von Sensordaten und Validierung der Steuerungslogik. |
+| **Mist extractor demo** | Ueberwachung des Oelnebelabscheiders mit PM10-Sensorik, Leistungsaufnahme und Ampel-Status. |
+| **Mist extractor settings** | Simulationseinstellungen, Live-State, Reset und Sichtbarkeit der optionalen REST-Schnittstelle fuer externe Steuerung. |
+| **Mist extractor savings** | Einsparbetrachtung fuer den Oelnebelabscheider. |
+| **Chip conveyor** | Monitoring des Spaenefoerderers mit Leistungsvisualisierung und Zustandsueberwachung. |
 
 ## Demo
 
-Die App ist live verfügbar auf der **Streamlit Community Cloud**:
+Die App ist live verfuegbar auf der **Streamlit Community Cloud**:
 
-👉 [**Factory-X Energy Savings starten**](https://factory-x-energy-savings.streamlit.app/)
+[Factory-X Energy Savings starten](https://factory-x-energy-savings.streamlit.app/)
 
 ## Installation (Lokale Entwicklung)
 
@@ -30,7 +31,7 @@ Die App ist live verfügbar auf der **Streamlit Community Cloud**:
    cd Factory-X_Energy_Savings
    ```
 
-2. **Abhängigkeiten installieren**:
+2. **Abhaengigkeiten installieren**:
    ```bash
    pip install -r requirements.txt
    ```
@@ -40,42 +41,71 @@ Die App ist live verfügbar auf der **Streamlit Community Cloud**:
    streamlit run app.py
    ```
 
-4. **Optional: REST API starten** (für Live-Daten):
-   ```bash
-   uvicorn app.services.data_service:app --reload
-   ```
+Die Streamlit-App startet die lokale Simulation und den optionalen REST-Endpunkt automatisch im selben Prozess. Dadurch koennen externe REST-Kommandos die im UI sichtbare Demo steuern.
+
+## Optionale REST-Schnittstelle
+
+Die REST-API ist kein zwingender Backend-Pfad fuer die Streamlit-App. Ihre Rolle ist eine optionale externe Demonstrator-Schnittstelle, mit der andere lokale Tools den Simulationszustand lesen oder sichere Simulationsparameter setzen koennen.
+
+Lokale Basis-URL:
+
+```text
+http://127.0.0.1:8000
+```
+
+Wichtige Endpunkte:
+
+| Methode | Endpunkt | Zweck |
+|---------|----------|-------|
+| `GET` | `/health` | API-Verfuegbarkeit pruefen |
+| `GET` | `/state` | Aktuellen Zustand und externe Steuerungsmetadaten lesen |
+| `GET` | `/history` | Letzte Simulationssamples lesen |
+| `POST` | `/control/pm10-rates` | PM10-Anstiegs- und Abfallrate setzen |
+| `POST` | `/control/reset` | Simulation zuruecksetzen |
+
+Beispiele:
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/state
+curl -X POST http://127.0.0.1:8000/control/pm10-rates \
+  -H "Content-Type: application/json" \
+  -d '{"rise_rate": 0.12, "fall_rate": 0.35}'
+curl -X POST http://127.0.0.1:8000/control/reset \
+  -H "Content-Type: application/json" \
+  -d '{"source": "REST API"}'
+```
+
+Fuer einen API-only Lauf ohne Streamlit kann die FastAPI-App separat gestartet werden:
+
+```bash
+uvicorn app.services.data_service:app --reload
+```
+
+Hinweis: Die Schnittstelle ist fuer den lokalen Demonstrator gedacht. Sie ist keine produktive Maschinensteuerung und enthaelt bewusst keine Authentifizierung.
 
 ## Projektstruktur
 
-```
+```text
 Factory-X_Energy_Savings/
 ├── app.py                 # Einstiegspunkt
 ├── app/
 │   ├── config.py          # Zentrale Konfiguration
 │   ├── main.py            # Hauptanwendungslogik und UI
 │   ├── components.py      # Wiederverwendbare UI-Komponenten
-│   ├── mist_extractor.py  # Ölnebelabscheider-Modul
-│   ├── chip_conveyor.py   # Späneförderer-Modul
-│   ├── test_env.py        # Testumgebung und Datensimulation
-│   └── services/          # Backend-Services (REST API)
+│   ├── mist_extractor.py  # Oelnebelabscheider-Modul
+│   ├── test_env.py        # Settings, Simulation und externe Steuerung
+│   └── services/          # FastAPI-Schnittstelle und Datenservice
 ├── assets/                # Logos und Styling-Assets
 └── requirements.txt
 ```
-
-## Design und Styling
-
-Die Anwendung folgt dem **Factory-X Design-Guide**:
-- **Material Design**: Material Symbols Rounded für intuitive Navigation
-- **Responsive Layout**: Optimiert für Wide-Mode mit Live-Updates
-- **Branding**: Factory-X Logos und Farbschema mit grünem Akzent (Energiethema)
-- **Ampel-Feedback**: Visueller Status über Farbcodierung (grün/gelb/rot)
 
 ## Technologie-Stack
 
 | Kategorie | Technologie |
 |-----------|-------------|
 | Frontend | Streamlit |
-| Backend/API | FastAPI, Uvicorn |
+| Externe Schnittstelle | FastAPI, Uvicorn |
 | Datenanalyse | Pandas, NumPy |
 | Visualisierung | Plotly |
 | HTTP-Kommunikation | Requests |

@@ -4,7 +4,18 @@ import threading
 from datetime import datetime
 from collections import deque
 from fastapi import FastAPI
+from pydantic import BaseModel, Field
 import uvicorn
+
+
+class PM10RatesCommand(BaseModel):
+    rise_rate: float = Field(..., ge=0.01, le=0.50)
+    fall_rate: float = Field(..., ge=0.05, le=1.00)
+    source: str = "REST API"
+
+
+class ResetCommand(BaseModel):
+    source: str = "REST API"
 
 class DataService:
     _instance = None
@@ -39,16 +50,71 @@ class DataService:
         self.mist_active = False
         self.pm10_rise_rate = 0.05
         self.pm10_fall_rate = 0.15
-        self._tasks_started = False
+        self._api_started = False
+        self._generator_started = False
+        self.control_metadata = {
+            "last_command": None,
+            "last_command_timestamp": None,
+            "last_command_source": None,
+            "pm10_rise_rate": self.pm10_rise_rate,
+            "pm10_fall_rate": self.pm10_fall_rate,
+        }
         
         self._initialized = True
         self.api_app = FastAPI()
         self._setup_routes()
 
     def _setup_routes(self):
+        @self.api_app.on_event("startup")
+        def start_api_data_generator():
+            self.start_data_generator()
+
+        @self.api_app.get("/health")
+        def get_health():
+            return {
+                "status": "ok",
+                "service": "Factory-X Energy Savings external control",
+                "role": "optional demonstrator interface",
+            }
+
         @self.api_app.get("/data")
         def get_data():
             return self.get_server_data_snapshot()
+
+        @self.api_app.get("/state")
+        def get_state():
+            return {
+                "state": self.get_server_data_snapshot(),
+                "external_control": self.get_control_metadata_snapshot(),
+            }
+
+        @self.api_app.get("/history")
+        def get_history():
+            return self.get_history_snapshot()
+
+        @self.api_app.post("/control/pm10-rates")
+        def post_pm10_rates(command: PM10RatesCommand):
+            self.set_pm10_rates(
+                command.rise_rate,
+                command.fall_rate,
+                source=command.source,
+                command_name="set_pm10_rates",
+            )
+            return {
+                "status": "ok",
+                "state": self.get_server_data_snapshot(),
+                "external_control": self.get_control_metadata_snapshot(),
+            }
+
+        @self.api_app.post("/control/reset")
+        def post_reset(command: ResetCommand | None = None):
+            source = command.source if command else "REST API"
+            self.reset_all_data(source=source, command_name="reset")
+            return {
+                "status": "ok",
+                "state": self.get_server_data_snapshot(),
+                "external_control": self.get_control_metadata_snapshot(),
+            }
 
     def run_api(self):
         uvicorn.run(self.api_app, host="127.0.0.1", port=8000, log_level="error")
@@ -96,12 +162,22 @@ class DataService:
             
             time.sleep(1)
 
-    def set_pm10_rates(self, rise_rate, fall_rate):
+    def _record_control_command(self, command_name, source):
+        self.control_metadata.update({
+            "last_command": command_name,
+            "last_command_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "last_command_source": source,
+            "pm10_rise_rate": self.pm10_rise_rate,
+            "pm10_fall_rate": self.pm10_fall_rate,
+        })
+
+    def set_pm10_rates(self, rise_rate, fall_rate, source="Streamlit UI", command_name="set_pm10_rates"):
         with self._state_lock:
             self.pm10_rise_rate = float(rise_rate)
             self.pm10_fall_rate = float(fall_rate)
             self.server_data["pm10_rise_rate"] = self.pm10_rise_rate
             self.server_data["pm10_fall_rate"] = self.pm10_fall_rate
+            self._record_control_command(command_name, source)
 
     def get_server_data_snapshot(self):
         with self._state_lock:
@@ -111,21 +187,37 @@ class DataService:
         with self._state_lock:
             return list(self.history)
 
-    def reset_all_data(self):
+    def get_control_metadata_snapshot(self):
+        with self._state_lock:
+            return self.control_metadata.copy()
+
+    def reset_all_data(self, source="Streamlit UI", command_name="reset"):
         with self._state_lock:
             self.history.clear()
             self.pm10_value = 0.0
             self.mist_active = False
             self.server_data["PM10"] = 0.0
             self.server_data["mist_extractor_active"] = False
+            self._record_control_command(command_name, source)
+
+    def start_api(self):
+        with self._lock:
+            if self._api_started:
+                return
+            self._api_started = True
+        threading.Thread(target=self.run_api, daemon=True).start()
+
+    def start_data_generator(self):
+        with self._lock:
+            if self._generator_started:
+                return
+            self._generator_started = True
+        threading.Thread(target=self.data_generator, daemon=True).start()
 
     def start_background_tasks(self):
-        with self._lock:
-            if self._tasks_started:
-                return
-            self._tasks_started = True
-        threading.Thread(target=self.run_api, daemon=True).start()
-        threading.Thread(target=self.data_generator, daemon=True).start()
+        self.start_api()
+        self.start_data_generator()
 
 # Global instance
 data_service = DataService()
+app = data_service.api_app

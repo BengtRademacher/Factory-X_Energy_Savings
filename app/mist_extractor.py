@@ -110,5 +110,5 @@ def render_mist_extractor_dynamic():
         st.metric("PM₁₀", f"{pm10:.3f} mg/m³")
 
 def render_mist_extractor():
-    st.header("Mist extractor")
+    st.header("Mist extractor demo")
     render_mist_extractor_dynamic()
