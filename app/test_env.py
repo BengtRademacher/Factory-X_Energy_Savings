@@ -11,7 +11,7 @@ def init_background_tasks():
 
 @st.fragment(run_every="1s")
 def render_dynamic_charts():
-    history_df = pd.DataFrame(list(data_service.history))
+    history_df = pd.DataFrame(data_service.get_history_snapshot())
     if history_df.empty:
         st.info("Waiting for data...")
         return
@@ -28,11 +28,11 @@ def render_dynamic_charts():
 
 @st.fragment(run_every="1s")
 def render_json_monitor():
-    history_df = pd.DataFrame(list(data_service.history))
+    history_df = pd.DataFrame(data_service.get_history_snapshot())
     col_j1, col_j2 = st.columns(2)
     with col_j1:
         st.write("**Data Server**")
-        st.json(data_service.server_data, expanded=True)
+        st.json(data_service.get_server_data_snapshot(), expanded=True)
     with col_j2:
         st.write("**API Response**")
         if not history_df.empty:
@@ -58,6 +58,10 @@ def render_test_env():
             key="slider_fall_rate"
         )
     data_service.set_pm10_rates(pm10_rise_rate, pm10_fall_rate)
+    st.caption(
+        f"Applied rise rate: {pm10_rise_rate:.2f} mg/m³/s · "
+        f"Applied fall rate: {pm10_fall_rate:.2f} mg/m³/s"
+    )
 
     st.divider()
     
@@ -74,4 +78,4 @@ def render_test_env():
         data_service.reset_all_data()
 
 def get_global_history():
-    return list(data_service.history)
+    return data_service.get_history_snapshot()
