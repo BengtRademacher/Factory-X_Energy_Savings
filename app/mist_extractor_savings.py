@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 
 import streamlit as st
 
@@ -9,14 +10,51 @@ _EXPERIMENTS_IMAGE = _ASSETS_DIR / "mist_extraction_experiments.png"
 _SAVINGS_IMAGE = _ASSETS_DIR / "mist_extraction_savings.png"
 
 
+def _image_data_uri(path: Path) -> str:
+    with path.open("rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode("utf-8")
+    return f"data:image/png;base64,{encoded}"
+
+
+def _render_image_panel(path: Path, alt_text: str) -> None:
+    st.markdown(
+        f"""
+<div class="savings-image-panel">
+  <img src="{_image_data_uri(path)}" alt="{alt_text}" />
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 def render_mist_extractor_savings():
     st.header("Energy savings for demand-oriented mist extraction")
     st.markdown(
         """
-- The experiment plot compares operating states, PM10 concentration, and effective power to show how mist extraction demand changes over time.
-- The savings plot summarizes the potential energy reduction when extraction runs on demand instead of continuously.
+<style>
+    .savings-image-panel {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+        padding: 18px;
+        margin: 18px 0 28px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .savings-image-panel img {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+</style>
+""",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+- Figure 1: Control strategies based on the two-point controller used in the energy savings concept
+- Figure 2: Energy savings achieved using the control strategies
 """
     )
 
-    st.image(str(_EXPERIMENTS_IMAGE), use_container_width=True)
-    st.image(str(_SAVINGS_IMAGE), use_container_width=True)
+    _render_image_panel(_EXPERIMENTS_IMAGE, "Control strategies based on the two-point controller")
+    _render_image_panel(_SAVINGS_IMAGE, "Energy savings achieved using the control strategies")
