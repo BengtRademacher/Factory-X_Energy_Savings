@@ -27,5 +27,4 @@ TAB_NAMES = [
     "Mist extractor demo",
     "Mist extractor settings",
     "Mist extractor savings",
-    "Chip conveyor",
 ]

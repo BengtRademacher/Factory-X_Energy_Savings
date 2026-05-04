@@ -2,7 +2,7 @@
   <img src="assets/FX_logo_top_left.png" alt="Factory-X Logo" width="300">
 </p>
 
-# Factory-X Energy Savings v0.1
+# Factory-X Energy Savings v1.0
 
 *Stand: 4. Mai 2026*
 
@@ -15,7 +15,6 @@ Die **Factory-X Energy Savings** App ist eine Streamlit-basierte Demonstrator-An
 | **Mist extractor demo** | Ueberwachung des Oelnebelabscheiders mit PM10-Sensorik, Leistungsaufnahme und Ampel-Status. |
 | **Mist extractor settings** | Simulationseinstellungen, Live-State, Reset und Sichtbarkeit der optionalen REST-Schnittstelle fuer externe Steuerung. |
 | **Mist extractor savings** | Einsparbetrachtung fuer den Oelnebelabscheider. |
-| **Chip conveyor** | Monitoring des Spaenefoerderers mit Leistungsvisualisierung und Zustandsueberwachung. |
 
 ## Demo
 

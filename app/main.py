@@ -10,7 +10,6 @@ from app.config import APP_TITLE, LOGO_FILENAME, TAB_NAMES
 from app.test_env import render_test_env, init_background_tasks
 from app.mist_extractor import render_mist_extractor
 from app.mist_extractor_savings import render_mist_extractor_savings
-from app.chip_conveyor import render_chip_conveyor
 
 _APP_ROOT = Path(__file__).resolve().parents[1]
 _LOGO_PATH = _APP_ROOT / "assets" / LOGO_FILENAME
@@ -131,7 +130,7 @@ def run_app() -> None:
     st.sidebar.markdown("""
         <hr class="sidebar-hr">
         <div style="color: gray; font-size: 0.8rem;">
-            Factory-X Energy Savings v0.1
+            Factory-X Energy Savings v1.0
         </div>
         """, unsafe_allow_html=True)
     
@@ -160,8 +159,6 @@ def run_app() -> None:
                 render_test_env()
             elif TAB_NAMES[i] == "Mist extractor savings":
                 render_mist_extractor_savings()
-            elif TAB_NAMES[i] == "Chip conveyor":
-                render_chip_conveyor()
             else:
                 st.header(TAB_NAMES[i])
                 st.write(f"Insert content for {TAB_NAMES[i]} here.")
