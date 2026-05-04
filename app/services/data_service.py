@@ -29,6 +29,8 @@ class DataService:
             "Chip conveyor": 0,
             "PM10": 0.0,
             "mist_extractor_active": False,
+            "pm10_rise_rate": 0.05,
+            "pm10_fall_rate": 0.15,
             "timestamp": ""
         }
         
@@ -37,6 +39,7 @@ class DataService:
         self.mist_active = False
         self.pm10_rise_rate = 0.05
         self.pm10_fall_rate = 0.15
+        self._tasks_started = False
         
         self._initialized = True
         self.api_app = FastAPI()
@@ -51,17 +54,28 @@ class DataService:
         uvicorn.run(self.api_app, host="127.0.0.1", port=8000, log_level="error")
 
     def data_generator(self):
+        last_tick = time.monotonic()
         while True:
-            # Two-point controller logic
+            now = time.monotonic()
+            elapsed_seconds = max(0.0, min(now - last_tick, 2.0))
+            last_tick = now
+
+            rise_rate = self.pm10_rise_rate
+            fall_rate = self.pm10_fall_rate
+
+            # Two-point controller logic. The slider values are maximum
+            # rates per second, so the random factor never exceeds 1.0.
             if not self.mist_active:
                 # Phase: Pollution (Extraction OFF)
-                self.pm10_value += self.pm10_rise_rate + random.uniform(-0.005, 0.005)
+                self.pm10_value += rise_rate * elapsed_seconds * random.uniform(0.9, 1.0)
                 if self.pm10_value >= 3.0:
+                    self.pm10_value = 3.0
                     self.mist_active = True
             else:
                 # Phase: Cleaning (Extraction ON)
-                self.pm10_value -= self.pm10_fall_rate + random.uniform(-0.01, 0.01)
+                self.pm10_value -= fall_rate * elapsed_seconds * random.uniform(0.9, 1.0)
                 if self.pm10_value <= 2.0:
+                    self.pm10_value = 2.0
                     self.mist_active = False
             
             # Clamp value
@@ -75,6 +89,8 @@ class DataService:
             
             self.server_data["PM10"] = self.pm10_value
             self.server_data["mist_extractor_active"] = self.mist_active
+            self.server_data["pm10_rise_rate"] = rise_rate
+            self.server_data["pm10_fall_rate"] = fall_rate
             self.server_data["timestamp"] = datetime.now().strftime("%H:%M:%S")
             
             time.sleep(1)
@@ -91,12 +107,20 @@ class DataService:
                         "Mist extractor": api_json.get("Mist extractor", 0),
                         "Chip conveyor": api_json.get("Chip conveyor", 0),
                         "PM10": api_json.get("PM10", 0.0),
-                        "mist_extractor_active": api_json.get("mist_extractor_active", False)
+                        "mist_extractor_active": api_json.get("mist_extractor_active", False),
+                        "pm10_rise_rate": api_json.get("pm10_rise_rate", self.pm10_rise_rate),
+                        "pm10_fall_rate": api_json.get("pm10_fall_rate", self.pm10_fall_rate)
                     }
                     self.history.append(normalized)
             except Exception:
                 pass
             time.sleep(1)
+
+    def set_pm10_rates(self, rise_rate, fall_rate):
+        self.pm10_rise_rate = float(rise_rate)
+        self.pm10_fall_rate = float(fall_rate)
+        self.server_data["pm10_rise_rate"] = self.pm10_rise_rate
+        self.server_data["pm10_fall_rate"] = self.pm10_fall_rate
 
     def reset_all_data(self):
         self.history.clear()
@@ -106,6 +130,10 @@ class DataService:
         self.server_data["mist_extractor_active"] = False
 
     def start_background_tasks(self):
+        with self._lock:
+            if self._tasks_started:
+                return
+            self._tasks_started = True
         threading.Thread(target=self.run_api, daemon=True).start()
         threading.Thread(target=self.data_generator, daemon=True).start()
         threading.Thread(target=self.api_poller, daemon=True).start()

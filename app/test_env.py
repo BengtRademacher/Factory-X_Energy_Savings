@@ -44,19 +44,20 @@ def render_test_env():
     st.subheader("Two-point controller")
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        data_service.pm10_rise_rate = st.slider(
+        pm10_rise_rate = st.slider(
             "Pollution rate (PM₁₀ rise)", 
             0.01, 0.50, data_service.pm10_rise_rate, 0.01,
             help="How fast PM₁₀ rises per second when extraction is inactive?",
             key="slider_rise_rate"
         )
     with col_s2:
-        data_service.pm10_fall_rate = st.slider(
+        pm10_fall_rate = st.slider(
             "Extraction efficiency (PM₁₀ fall)", 
             0.05, 1.00, data_service.pm10_fall_rate, 0.01,
             help="How fast PM₁₀ falls per second when extraction is active?",
             key="slider_fall_rate"
         )
+    data_service.set_pm10_rates(pm10_rise_rate, pm10_fall_rate)
 
     st.divider()
     
