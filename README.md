@@ -12,7 +12,6 @@ Die **Factory-X Energy Savings** App ist eine Streamlit-basierte Anwendung zur E
 
 | Tab | Funktion |
 |-----|----------|
-| **Monitoring** | Zentrale Übersicht aller überwachten Nebenaggregate mit Echtzeit-Statusanzeige und Leistungswerten. |
 | **Mist extractor** | Überwachung des Ölnebelabscheiders mit PM₁₀-Sensorik. Visualisierung von Leistungsaufnahme und Partikelkonzentration mit Ampel-Status. |
 | **Chip conveyor** | Monitoring des Späneförderers mit Leistungsvisualisierung und Zustandsüberwachung für bedarfsgerechten Betrieb. |
 | **Testing** | Testumgebung zur Simulation von Sensordaten und Validierung der Steuerungslogik. |

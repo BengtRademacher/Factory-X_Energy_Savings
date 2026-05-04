@@ -24,7 +24,6 @@ LOGO_FILENAME = "FX_logo_top_left.png"
 
 # Tab Names
 TAB_NAMES = [
-    "Monitoring",
     "Mist extractor",
     "Chip conveyor",
     "Testing",
